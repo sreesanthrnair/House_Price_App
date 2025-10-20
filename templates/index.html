@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🏠 House Price Prediction System</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for appearance */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Changed to dark violet background */
+            background-color: #2e0854; 
+        }
+        /* Custom focus ring color */
+        input:focus, select:focus {
+            --tw-ring-color: #9a67ea; /* Violet-400 */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="app" class="w-full max-w-lg bg-white p-8 rounded-xl shadow-2xl transition-all duration-300">
+        <h1 class="text-3xl font-extrabold text-violet-700 mb-6 text-center">
+            🏠 House Price Predictor
+        </h1>
+        
+        <!-- Prediction Form Area -->
+        <div id="form-section">
+            <p class="text-gray-600 mb-6 text-center">
+                Enter all required house details below to get your estimated sale price.
+            </p>
+            <form id="predictForm" class="space-y-4">
+                
+                <!-- Existing Inputs -->
+                <input type="number" name="area" placeholder="Flat Area (in Sqft)" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150">
+                <input type="number" name="bedrooms" placeholder="Number of Bedrooms" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150">
+                <input type="number" name="bathrooms" placeholder="Number of Bathrooms" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150">
+                <input type="number" name="grade" placeholder="Rating(1-10)" required min="1" max="10"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150">
+
+                <!-- New Input: Condition (Select/Dropdown) -->
+                <select name="condition" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150 text-gray-700">
+                    <option value="" disabled selected>Condition of the House</option>
+                    <option value="0">Bad (0)</option>
+                    <option value="1">Okay (1)</option>
+                    <option value="2">Fair (2)</option>
+                    <option value="3">Good (3)</option>
+                    <option value="4">Excellent (4)</option>
+                </select>
+
+                <!-- New Input: Year Built -->
+                <input type="number" name="year_built" placeholder="Year House Was Built (e.g., 1985)" required min="1800" max="2025"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition duration-150">
+
+
+                <button type="submit" id="predict-button"
+                        class="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl shadow-lg 
+                                hover:bg-violet-700 active:scale-[0.98] transition-all duration-150 ease-in-out 
+                                focus:outline-none focus:ring-4 focus:ring-violet-300 disabled:opacity-50">
+                    Predict Price
+                </button>
+            </form>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="text-center py-10" style="display:none;">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-500 mx-auto mb-4"></div>
+            <p class="text-lg text-violet-600 font-medium">Analyzing features and calculating...</p>
+        </div>
+
+        <!-- Result Page Area (Enhanced) -->
+        <div id="result-section" class="text-center py-6" style="display:none;">
+            <svg class="mx-auto h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 class="text-2xl font-bold text-gray-800 mt-4 mb-2">Estimated Sale Price</h2>
+            <p id="prediction-output" class="text-5xl font-extrabold text-green-600 mb-6">$000,000</p>
+            
+            <div id="detail-summary" class="text-left bg-gray-50 p-4 rounded-lg mb-6 shadow-inner">
+                <h3 class="font-bold text-gray-700 mb-2 border-b pb-1">Input Summary:</h3>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li id="sum-area">Area: -</li>
+                    <li id="sum-bedrooms">Bedrooms: -</li>
+                    <li id="sum-bathrooms">Bathrooms: -</li>
+                    <li id="sum-grade">Grade: -</li>
+                    <li id="sum-condition">Condition: -</li>
+                    <li id="sum-year">Year Built: -</li>
+                </ul>
+            </div>
+
+            <button id="reset-button"
+                    class="w-full bg-violet-100 text-violet-800 font-semibold py-3 rounded-xl shadow-md 
+                            hover:bg-violet-200 active:scale-[0.98] transition-all duration-150 ease-in-out 
+                            focus:outline-none focus:ring-4 focus:ring-violet-400">
+                Start New Prediction
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const predictForm = document.getElementById('predictForm');
+        const formSection = document.getElementById('form-section');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('result-section');
+        const predictionOutput = document.getElementById('prediction-output');
+        const resetButton = document.getElementById('reset-button');
+        const predictButton = document.getElementById('predict-button');
+
+        // Detail Summary Elements
+        const sumArea = document.getElementById('sum-area');
+        const sumBedrooms = document.getElementById('sum-bedrooms');
+        const sumBathrooms = document.getElementById('sum-bathrooms');
+        const sumGrade = document.getElementById('sum-grade');
+        const sumCondition = document.getElementById('sum-condition');
+        const sumYear = document.getElementById('sum-year');
+        
+        const CONDITION_MAP = {
+            '0': 'Bad',
+            '1': 'Okay',
+            '2': 'Fair',
+            '3': 'Good',
+            '4': 'Excellent'
+        };
+
+        // Function to display the view
+        function setView(view) {
+            formSection.style.display = view === 'form' ? 'block' : 'none';
+            loading.style.display = view === 'loading' ? 'block' : 'none';
+            resultSection.style.display = view === 'result' ? 'block' : 'none';
+        }
+
+        // Handle Form Submission
+        predictForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // 1. Show Loading State
+            setView('loading');
+            predictButton.disabled = true;
+
+            // 2. Get form data
+            const formData = new FormData(predictForm);
+            const area = parseInt(formData.get('area'));
+            const bedrooms = parseInt(formData.get('bedrooms'));
+            const bathrooms = parseFloat(formData.get('bathrooms'));
+            const grade = parseInt(formData.get('grade'));
+            const condition = parseInt(formData.get('condition')); // New
+            const year_built = parseInt(formData.get('year_built')); // New
+
+            // 3. Simulate API call/model loading delay
+            setTimeout(() => {
+                
+                // --- MOCK PREDICTION LOGIC ---
+                // The actual model should replace this logic
+                let mockPrice = 50000; 
+                mockPrice += area * 120;
+                mockPrice += bedrooms * 65000;
+                mockPrice += bathrooms * 85000;
+                mockPrice += grade * 120000;
+                mockPrice += condition * 40000; 
+                
+                // Calculate age and penalize older houses slightly
+                const age = new Date().getFullYear() - year_built;
+                mockPrice -= age * 1000; 
+                
+                // Ensure price is not negative
+                mockPrice = Math.max(50000, mockPrice);
+
+                // Format the price for display
+                const formattedPrice = mockPrice.toLocaleString('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                
+                // --- Update Result Summary ---
+                sumArea.textContent = `Area: ${area.toLocaleString()} Sqft`;
+                sumBedrooms.textContent = `Bedrooms: ${bedrooms}`;
+                sumBathrooms.textContent = `Bathrooms: ${bathrooms}`;
+                sumGrade.textContent = `Overall Grade: ${grade}/10`;
+                sumCondition.textContent = `Condition: ${CONDITION_MAP[String(condition)]} (${condition}/4)`;
+                sumYear.textContent = `Year Built: ${year_built} (Age: ${age} years)`;
+
+                // 4. Update result and show Result State
+                predictionOutput.textContent = formattedPrice;
+                setView('result');
+                predictButton.disabled = false;
+
+            }, 2000); // 2 second delay for simulation
+        });
+
+        // Handle Reset Button Click
+        resetButton.addEventListener('click', function() {
+            predictForm.reset();
+            setView('form');
+        });
+
+        // Initialize view
+        setView('form');
+    </script>
+</body>
+</html>
